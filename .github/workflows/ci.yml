@@ -194,16 +194,18 @@ jobs:
           arch: x86_64
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim -memory 3072
           script: |
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-            adb logcat -c
-            adb shell am start -W -n dev.sails/.MainActivity || true
+            adb install -r app/build/outputs/apk/debug/app-debug.apk || \
+              { sleep 10; adb install -r app/build/outputs/apk/debug/app-debug.apk; } || \
+              echo "::error::adb install failed"
+            adb logcat -c || true
+            adb shell am start -W -n dev.sails/.MainActivity || echo "::error::am start failed"
             sleep 8
             adb exec-out screencap -p > shot-8s.png || true
             sleep 15
             adb exec-out screencap -p > shot-23s.png || true
             sleep 15
             adb exec-out screencap -p > shot-38s.png || true
-            adb logcat -d > logcat.txt
+            adb logcat -d > logcat.txt || true
             PID=$(adb shell pidof dev.sails 2>/dev/null | tr -d '\r' || true)
             if [ -n "$PID" ]; then
               echo "APP ALIVE pid=$PID"
@@ -214,7 +216,14 @@ jobs:
             fi
             grep -aE "FATAL EXCEPTION|AndroidRuntime: |libc: |DEBUG   |SIGSEGV|Fatal signal|Cefrium|sails" logcat.txt \
               | cut -c1-400 | tail -60 > crash-digest.txt || true
-            cat crash-digest.txt
+            cat crash-digest.txt || true
+            # Self-report via annotations (the only log channel readable here).
+            if grep -q crashed verdict.txt; then
+              sed 's/^/::error::/' crash-digest.txt | head -40 || true
+            else
+              echo "::notice::Sails survived 38s on the emulator, pid=$PID"
+            fi
+            true
 
       - name: Fail loudly if the app died
         run: |
