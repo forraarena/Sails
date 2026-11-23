@@ -15,6 +15,7 @@ pub type GLchar = i8;
 
 pub const GL_NO_ERROR: GLenum = 0;
 pub const GL_TRUE: GLboolean = 1;
+pub const GL_FALSE: GLboolean = 0;
 
 // Buffers & drawing
 pub const GL_ARRAY_BUFFER: GLenum = 0x8892;
