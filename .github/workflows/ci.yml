@@ -2,8 +2,8 @@ name: build
 
 # Builds the debug APK and uploads it as an artifact, so the PoC can be
 # installed on a device or x86_64 emulator without a local Android toolchain.
-# The native build log is always uploaded as an artifact too (the Actions log
-# viewer is sometimes unreachable via the API).
+# On any failure, the step logs are pushed to the branch (.ci/) because the
+# Actions log endpoints are not always reachable via the API.
 on:
   push:
   pull_request:
@@ -35,18 +35,8 @@ jobs:
 
       - name: Build native compositor (libsails.so)
         run: |
-          set -x
+          set -o pipefail
           bash scripts/build-rust.sh 2>&1 | tee build-rust.log
-
-      - name: Push native build log to branch (debug aid)
-        if: failure()
-        run: |
-          git config user.name "sails-ci"
-          git config user.email "sails-ci@users.noreply.github.com"
-          mkdir -p .ci && cp build-rust.log .ci/last-build.log 2>/dev/null || echo "no log produced" > .ci/last-build.log
-          git add .ci/last-build.log
-          git commit -m "CI: native build log [skip ci]" || true
-          git push
 
       - name: Upload native build log
         if: always()
@@ -60,7 +50,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build APK (debug)
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-debug.log
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
@@ -69,10 +61,26 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Build APK (release, unsigned)
-        run: ./gradlew :app:assembleRelease --no-daemon
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleRelease --no-daemon 2>&1 | tee gradle-release.log
 
       - name: Upload release APK artifact (unsigned)
         uses: actions/upload-artifact@v4
         with:
           name: sails-release-apk
           path: app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Push step logs to branch (debug aid)
+        if: failure()
+        run: |
+          git config user.name "sails-ci"
+          git config user.email "sails-ci@users.noreply.github.com"
+          mkdir -p .ci
+          for f in build-rust.log gradle-debug.log gradle-release.log; do
+            [ -f "$f" ] && cp "$f" ".ci/$f"
+          done
+          echo "run $GITHUB_RUN_ID at $(date -u)" > .ci/info.txt
+          git add -A .ci
+          git commit -m "CI logs [skip ci]" || true
+          git push
