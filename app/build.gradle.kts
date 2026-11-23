@@ -36,6 +36,16 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            // Sign the CI-built release APK with the debug key so it can be
+            // sideloaded directly. Fine for PoC releases; swap for a real
+            // key before any distribution outside this repo.
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
 }
 
 // Fail the build early (with a clear message) when the native compositor

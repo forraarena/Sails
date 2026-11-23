@@ -6,6 +6,10 @@ name: build
 # Actions log endpoints are not always reachable via the API.
 on:
   push:
+    tags:
+      - 'v*'
+    branches:
+      - '**'
   pull_request:
   workflow_dispatch:
 
@@ -87,8 +91,47 @@ jobs:
             exit 1
           }
 
-      - name: Upload release APK artifact (unsigned)
+      - name: Upload release APK artifact (unsigned->debug-signed)
         uses: actions/upload-artifact@v4
         with:
           name: sails-release-apk
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          path: app/build/outputs/apk/release/app-release*.apk
+
+  release:
+    # Tag pushes (v*) produce a GitHub Release with both installable APKs.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: apk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download built APKs
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: apks
+
+      - name: Rename assets
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ -f apks/app-debug.apk ]; then
+            mv apks/app-debug.apk "apks/Sails-${TAG}-debug.apk"
+          fi
+          if [ -f apks/app-release.apk ]; then
+            mv apks/app-release.apk "apks/Sails-${TAG}-release.apk"
+          elif [ -f apks/app-release-unsigned.apk ]; then
+            mv apks/app-release-unsigned.apk "apks/Sails-${TAG}-release.apk"
+          fi
+          ls -la apks/
+
+      - name: Publish GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Sails ${GITHUB_REF_NAME}" \
+            --notes-file RELEASE_NOTES.md \
+            --target "$GITHUB_SHA"
+          gh release upload "$GITHUB_REF_NAME" apks/*.apk --clobber
