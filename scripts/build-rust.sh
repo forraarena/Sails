@@ -96,7 +96,9 @@ export ANDROID_NDK_HOME="$NDK_FOUND"
 SAILS_LOG="${SAILS_LOG:-}"
 # The crate lives in rust/; cargo-ndk runs cargo in the current directory,
 # so build from there (subshell keeps the rest of the script at the root).
-if ! (cd rust && cargo ndk $(for t in $TARGETS; do printf -- "-t %s " "$t"; done) $BUILD_FLAG build); then
+# Note: --release goes AFTER `build` -- cargo-ndk forwards post-`build` args
+# to cargo itself and rejects them as global flags.
+if ! (cd rust && cargo ndk $(for t in $TARGETS; do printf -- "-t %s " "$t"; done) build $BUILD_FLAG); then
   annotate_tail "$SAILS_LOG" 25
   exit 1
 fi
