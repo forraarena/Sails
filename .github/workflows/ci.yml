@@ -194,9 +194,20 @@ jobs:
           arch: x86_64
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim -memory 3072
           script: |
-            adb install -r app/build/outputs/apk/debug/app-debug.apk || \
-              { sleep 10; adb install -r app/build/outputs/apk/debug/app-debug.apk; } || \
-              echo "::error::adb install failed"
+            if ! OUT=$(adb install -r -g app/build/outputs/apk/debug/app-debug.apk 2>&1); then
+              echo "::error::first install attempt failed: $OUT"
+              sleep 10
+              OUT=$(adb install -r -g app/build/outputs/apk/debug/app-debug.apk 2>&1)
+            fi
+            printf '%s\n' "$OUT" > install.log
+            printf '%s\n' "$OUT"
+            if ! printf '%s\n' "$OUT" | grep -q "Success"; then
+              printf '%s\n' "$OUT" | cut -c1-300 | sed 's/^/::error::/'
+              adb shell df -h /data 2>&1 | head -5 | sed 's/^/::error::/' || true
+              echo "crashed" > verdict.txt
+              adb logcat -d > logcat.txt || true
+              exit 0
+            fi
             adb logcat -c || true
             adb shell am start -W -n dev.sails/.MainActivity || echo "::error::am start failed"
             sleep 8
@@ -242,4 +253,5 @@ jobs:
             crash-digest.txt
             shot-*.png
             verdict.txt
+            install.log
           if-no-files-found: warn
