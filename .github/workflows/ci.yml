@@ -29,7 +29,7 @@ jobs:
       - name: Rust toolchain + Android targets
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android
 
       - name: Rust unit tests (host)
         run: |
@@ -135,3 +135,110 @@ jobs:
             --notes-file RELEASE_NOTES.md \
             --target "$GITHUB_SHA"
           gh release upload "$GITHUB_REF_NAME" apks/*.apk --clobber
+
+  smoke:
+    # Boots an x86_64 emulator, installs the APK, launches Sails, and
+    # captures logcat + screenshots -- the crash the user sees on a device
+    # becomes a reproducible artifact here.
+    name: Emulator smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 25 (Cefrium hard floor)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Rust toolchain + Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+
+      - name: Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          add-to-path: true
+
+      - name: Build native compositor (both ABIs for emulator + device)
+        run: |
+          set -o pipefail
+          SAILS_TARGETS="aarch64-linux-android x86_64-linux-android" \
+            bash scripts/build-rust.sh 2>&1 | tee build-rust.log
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install emulator + system image
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+          "$SDKM" --install "system-images;android-30;google_apis;x86_64" "platform-tools" > /dev/null
+
+      - name: Boot emulator
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
+            -n sails-test -k "system-images;android-30;google_apis;x86_64" --force
+          nohup "$ANDROID_HOME/emulator/emulator" -avd sails-test \
+            -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect \
+            -no-snapshot -memory 3072 -accel on > emulator.log 2>&1 &
+          adb wait-for-device
+          timeout 300 bash -c 'while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do sleep 3; done'
+          echo "emulator booted: sdk=$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+
+      - name: Install, launch, capture
+        run: |
+          adb install -r app/build/outputs/apk/debug/app-debug.apk
+          adb logcat -c
+          adb shell am start -W -n dev.sails/.MainActivity || true
+          sleep 8
+          adb exec-out screencap -p > shot-8s.png || true
+          sleep 15
+          adb exec-out screencap -p > shot-23s.png || true
+          sleep 15
+          adb exec-out screencap -p > shot-38s.png || true
+          adb logcat -d > logcat.txt
+          PID=$(adb shell pidof dev.sails 2>/dev/null | tr -d '\r' || true)
+          if [ -n "$PID" ]; then
+            echo "APP ALIVE pid=$PID"
+            echo "alive" > verdict.txt
+          else
+            echo "APP PROCESS GONE (crashed or killed)"
+            echo "crashed" > verdict.txt
+          fi
+          # Crash digest for annotations (readable via the API even when the
+          # Actions log endpoints are unreachable).
+          grep -aE "FATAL EXCEPTION|AndroidRuntime: |libc: |DEBUG   |SIGSEGV|Fatal signal|Cefrium|sails" logcat.txt \
+            | cut -c1-400 | tail -60 > crash-digest.txt || true
+          wc -l crash-digest.txt
+
+      - name: Fail loudly if the app died
+        run: |
+          if grep -q crashed verdict.txt; then
+            sed 's/^/::error::/' crash-digest.txt | head -40
+            exit 1
+          fi
+
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test
+          path: |
+            logcat.txt
+            crash-digest.txt
+            shot-*.png
+            emulator.log
+            verdict.txt
+          if-no-files-found: warn

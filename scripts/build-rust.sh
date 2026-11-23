@@ -36,7 +36,9 @@ else
   BUILD_FLAG="--release"
 fi
 
-TARGETS="${SAILS_TARGETS:-aarch64-linux-android x86_64-linux-android}"
+# Default: arm64 only. The x86_64 build exists for the CI emulator smoke
+# test (set SAILS_TARGETS="aarch64-linux-android x86_64-linux-android").
+TARGETS="${SAILS_TARGETS:-aarch64-linux-android}"
 
 if ! command -v cargo >/dev/null 2>&1; then
   echo "error: no Rust toolchain found -- install from https://rustup.rs" >&2

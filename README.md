@@ -85,7 +85,9 @@ Prerequisites:
 
 - JDK 25, Android SDK (platform 37), an NDK (`sdkmanager "ndk;27.x"`)
 - Rust (`rustup`) + `cargo-ndk` (installed automatically by the script)
-- A device or emulator: **arm64-v8a** or **x86_64** (Android 10 / API 29+)
+- A device or emulator: **arm64-v8a** (Android 10 / API 29+). Release APKs
+  ship arm64 only; the CI smoke test additionally builds x86_64 for the
+  emulator.
 
 ```bash
 # 1. native compositor -> app/src/main/jniLibs/<abi>/libsails.so
