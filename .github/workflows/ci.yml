@@ -185,53 +185,36 @@ jobs:
           SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKM" --licenses > /dev/null 2>&1 || true
           "$SDKM" --install "system-images;android-30;google_apis;x86_64" "platform-tools" "emulator"
-          "$ANDROID_HOME/emulator/emulator" -version | head -2
 
-      - name: Create AVD
-        run: |
-          set -o pipefail
-          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
-            -n sails-test -k "system-images;android-30;google_apis;x86_64" --force 2>&1 | tee avd-create.log || {
-            tail -n 20 avd-create.log | cut -c1-400 | sed 's/^/::error::/'
-            exit 1
-          }
-
-      - name: Boot emulator
-        run: |
-          set -o pipefail
-          nohup "$ANDROID_HOME/emulator/emulator" -avd sails-test \
-            -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect \
-            -no-snapshot -memory 3072 -accel on > emulator.log 2>&1 &
-          adb wait-for-device || { tail -n 30 emulator.log | cut -c1-400 | sed 's/^/::error::/'; exit 1; }
-          timeout 300 bash -c 'while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do sleep 3; done' \
-            || { tail -n 40 emulator.log | cut -c1-400 | sed 's/^/::error::/'; exit 1; }
-          echo "emulator booted: sdk=$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
-
-      - name: Install, launch, capture
-        run: |
-          adb install -r app/build/outputs/apk/debug/app-debug.apk
-          adb logcat -c
-          adb shell am start -W -n dev.sails/.MainActivity || true
-          sleep 8
-          adb exec-out screencap -p > shot-8s.png || true
-          sleep 15
-          adb exec-out screencap -p > shot-23s.png || true
-          sleep 15
-          adb exec-out screencap -p > shot-38s.png || true
-          adb logcat -d > logcat.txt
-          PID=$(adb shell pidof dev.sails 2>/dev/null | tr -d '\r' || true)
-          if [ -n "$PID" ]; then
-            echo "APP ALIVE pid=$PID"
-            echo "alive" > verdict.txt
-          else
-            echo "APP PROCESS GONE (crashed or killed)"
-            echo "crashed" > verdict.txt
-          fi
-          # Crash digest for annotations (readable via the API even when the
-          # Actions log endpoints are unreachable).
-          grep -aE "FATAL EXCEPTION|AndroidRuntime: |libc: |DEBUG   |SIGSEGV|Fatal signal|Cefrium|sails" logcat.txt \
-            | cut -c1-400 | tail -60 > crash-digest.txt || true
-          wc -l crash-digest.txt
+      - name: Run smoke test on emulator
+        uses: reactivecircus/android-emulator-runner@v6
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim -memory 3072
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            adb shell am start -W -n dev.sails/.MainActivity || true
+            sleep 8
+            adb exec-out screencap -p > shot-8s.png || true
+            sleep 15
+            adb exec-out screencap -p > shot-23s.png || true
+            sleep 15
+            adb exec-out screencap -p > shot-38s.png || true
+            adb logcat -d > logcat.txt
+            PID=$(adb shell pidof dev.sails 2>/dev/null | tr -d '\r' || true)
+            if [ -n "$PID" ]; then
+              echo "APP ALIVE pid=$PID"
+              echo "alive" > verdict.txt
+            else
+              echo "APP PROCESS GONE (crashed or killed)"
+              echo "crashed" > verdict.txt
+            fi
+            grep -aE "FATAL EXCEPTION|AndroidRuntime: |libc: |DEBUG   |SIGSEGV|Fatal signal|Cefrium|sails" logcat.txt \
+              | cut -c1-400 | tail -60 > crash-digest.txt || true
+            cat crash-digest.txt
 
       - name: Fail loudly if the app died
         run: |
@@ -249,7 +232,5 @@ jobs:
             logcat.txt
             crash-digest.txt
             shot-*.png
-            emulator.log
             verdict.txt
-            avd-create.log
           if-no-files-found: warn
