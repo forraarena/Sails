@@ -36,7 +36,7 @@ jobs:
       - name: Build native compositor (libsails.so)
         run: |
           set -o pipefail
-          bash scripts/build-rust.sh 2>&1 | tee build-rust.log
+          SAILS_LOG=build-rust.log bash scripts/build-rust.sh 2>&1 | tee build-rust.log
 
       - name: Upload native build log
         if: always()
@@ -52,7 +52,10 @@ jobs:
       - name: Build APK (debug)
         run: |
           set -o pipefail
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-debug.log
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-debug.log || {
+            tail -n 25 gradle-debug.log | cut -c1-800 | sed 's/^/::error::/'
+            exit 1
+          }
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
@@ -63,24 +66,13 @@ jobs:
       - name: Build APK (release, unsigned)
         run: |
           set -o pipefail
-          ./gradlew :app:assembleRelease --no-daemon 2>&1 | tee gradle-release.log
+          ./gradlew :app:assembleRelease --no-daemon 2>&1 | tee gradle-release.log || {
+            tail -n 25 gradle-release.log | cut -c1-800 | sed 's/^/::error::/'
+            exit 1
+          }
 
       - name: Upload release APK artifact (unsigned)
         uses: actions/upload-artifact@v4
         with:
           name: sails-release-apk
           path: app/build/outputs/apk/release/app-release-unsigned.apk
-
-      - name: Push step logs to branch (debug aid)
-        if: failure()
-        run: |
-          git config user.name "sails-ci"
-          git config user.email "sails-ci@users.noreply.github.com"
-          mkdir -p .ci
-          for f in build-rust.log gradle-debug.log gradle-release.log; do
-            [ -f "$f" ] && cp "$f" ".ci/$f"
-          done
-          echo "run $GITHUB_RUN_ID at $(date -u)" > .ci/info.txt
-          git add -A .ci
-          git commit -m "CI logs [skip ci]" || true
-          git push

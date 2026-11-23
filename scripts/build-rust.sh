@@ -13,6 +13,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Emit the tail of a log file as workflow-error annotations (readable via the
+# API even when the Actions log download is unreachable).
+annotate_tail() {
+  local file="${1:-}" lines="${2:-25}"
+  if [ -f "$file" ]; then
+    tail -n "$lines" "$file" | cut -c1-800 | sed 's/^/::error::/'
+  fi
+}
+
 echo "== environment =="
 echo "cargo: $(command -v cargo || echo MISSING)"
 cargo --version 2>&1 || true
@@ -66,12 +75,29 @@ echo "NDK: $NDK_FOUND"
 
 if ! command -v cargo-ndk >/dev/null 2>&1; then
   echo "Installing cargo-ndk..."
-  cargo install cargo-ndk --locked
+  ok=""
+  for attempt in 1 2 3; do
+    if cargo install cargo-ndk --locked; then
+      ok=1
+      break
+    fi
+    echo "cargo-ndk install attempt $attempt failed; retrying in 10s" >&2
+    sleep 10
+  done
+  if [ -z "$ok" ]; then
+    annotate_tail "$SAILS_LOG" 25
+    exit 1
+  fi
 fi
 
 # cargo-ndk locates the NDK via ANDROID_NDK_HOME or ANDROID_HOME/ndk/<latest>.
 export ANDROID_NDK_HOME="$NDK_FOUND"
-cargo ndk $(for t in $TARGETS; do printf -- "-t %s " "$t"; done) $BUILD_FLAG build
+# SAILS_LOG lets CI point the failure annotations at the tee'd build log.
+SAILS_LOG="${SAILS_LOG:-}"
+if ! cargo ndk $(for t in $TARGETS; do printf -- "-t %s " "$t"; done) $BUILD_FLAG build; then
+  annotate_tail "$SAILS_LOG" 25
+  exit 1
+fi
 
 OUT="app/src/main/jniLibs"
 for t in $TARGETS; do
