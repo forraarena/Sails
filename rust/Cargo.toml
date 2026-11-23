@@ -1,0 +1,18 @@
+[package]
+name = "sails"
+version = "0.1.0"
+edition = "2021"
+description = "Sails browser: native Rust + OpenGL ES compositor around the Cefrium engine"
+
+# The compositor is deliberately dependency-free: no crates.io fetches, no
+# bindgen -- raw EGL/GLES3/JNI FFI only. Build with `scripts/build-rust.sh`
+# (cargo-ndk) for arm64-v8a and x86_64.
+
+[lib]
+name = "sails"
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true

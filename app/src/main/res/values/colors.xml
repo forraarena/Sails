@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chrome bar / background palette (drawn natively in Rust, mirrored here
+         only for the window background so startup doesn't flash white). -->
+    <color name="sails_bar">#FF0B1026</color>
+    <color name="sails_bg">#FF060A18</color>
+    <color name="sails_accent">#FF4FC3F7</color>
+    <color name="ic_launcher_background">#FF0B1026</color>
+</resources>

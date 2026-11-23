@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A little sail on the water. Drawn in the 108dp adaptive-icon viewport;
+     the artwork stays inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- mainsail -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M50,26 L50,60 L64,60 C64,60 62,40 50,26 Z" />
+    <!-- jib -->
+    <path
+        android:fillColor="#FF4FC3F7"
+        android:pathData="M46,34 L46,60 L36,60 C36,60 39,44 46,34 Z" />
+    <!-- hull -->
+    <path
+        android:fillColor="#FF4FC3F7"
+        android:pathData="M30,63 L74,63 L68,71 L37,71 Z" />
+    <!-- water line -->
+    <path
+        android:fillColor="#334FC3F7"
+        android:pathData="M26,76 L82,76 L82,78 L26,78 Z" />
+</vector>

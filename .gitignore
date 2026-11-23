@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+captures/
+
+# Rust
+rust/target/
+
+# Native libs are build artifacts (built by scripts/build-rust.sh or CI)
+app/src/main/jniLibs/
+
+# OS
+.DS_Store

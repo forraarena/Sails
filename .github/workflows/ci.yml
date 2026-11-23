@@ -1,0 +1,48 @@
+name: build
+
+# Builds the debug APK and uploads it as an artifact, so the PoC can be
+# installed on a device or x86_64 emulator without a local Android toolchain.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 25 (Cefrium hard floor)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Rust toolchain + Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+
+      - name: Build native compositor (libsails.so)
+        run: ./scripts/build-rust.sh
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sails-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload release APK artifact (unsigned)
+        run: ./gradlew :app:assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sails-release-apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
