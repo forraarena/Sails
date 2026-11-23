@@ -165,7 +165,7 @@ impl Renderer {
             egl::eglDestroySurface(self.display, surface);
         }
         if self.window != 0 {
-            ANativeWindow_release(self.window as *mut ANativeWindow);
+            ANativeWindow::release(self.window as *mut ANativeWindow);
             self.window = 0;
             self.width = 0;
             self.height = 0;
