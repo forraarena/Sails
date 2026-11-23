@@ -179,6 +179,14 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm || echo "::warning::/dev/kvm absent -- emulator cannot run here"
+
+      - name: Skip smoke when no KVM
+        run: |
+          if [ ! -e /dev/kvm ]; then
+            echo "no-kvm" > SKIP_SMOKE
+            echo "::notice::disabling emulator smoke test for this run (no KVM)"
+          fi
 
       - name: Install emulator + system image
         run: |
@@ -187,6 +195,7 @@ jobs:
           "$SDKM" --install "system-images;android-30;google_apis;x86_64" "platform-tools" "emulator"
 
       - name: Run smoke test on emulator
+        if: ${{ hashFiles('SKIP_SMOKE') == '' }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
@@ -238,6 +247,7 @@ jobs:
             true
 
       - name: Fail loudly if the app died
+        if: ${{ hashFiles('SKIP_SMOKE') == '' }}
         run: |
           if grep -q crashed verdict.txt; then
             sed 's/^/::error::/' crash-digest.txt | head -40

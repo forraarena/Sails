@@ -29,7 +29,13 @@ android {
         minSdk = 29
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.1.1"
+
+        // Cefrium's AAR bundles libcef.so (~150-200 MB) for every ABI; filter
+        // to arm64 so the APK ships one engine instead of two.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     compileOptions {
