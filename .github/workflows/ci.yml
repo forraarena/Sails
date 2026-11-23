@@ -28,7 +28,17 @@ jobs:
           targets: aarch64-linux-android,x86_64-linux-android
 
       - name: Rust unit tests (host)
-        run: cargo test --manifest-path rust/Cargo.toml
+        run: |
+          # The crate declares #[link(android/log/EGL/GLESv3)] for the Android
+          # build; for the host test binary, stub them out (tests never call
+          # into them -- they exercise pure logic only).
+          mkdir -p /tmp/android-stubs
+          printf 'static int unused;\n' > /tmp/android-stubs/empty.c
+          for lib in android log EGL GLESv3; do
+            gcc -shared -fPIC -o "/tmp/android-stubs/lib$lib.so" /tmp/android-stubs/empty.c
+          done
+          LD_LIBRARY_PATH=/tmp/android-stubs RUSTFLAGS="-L /tmp/android-stubs" \
+            cargo test --manifest-path rust/Cargo.toml
 
       - name: Android NDK (runner images no longer preinstall it)
         uses: nttld/setup-ndk@v1
