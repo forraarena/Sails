@@ -11,7 +11,9 @@ pub type GLsizei = i32;
 pub type GLsizeiptr = isize;
 pub type GLfloat = f32;
 pub type GLboolean = u8;
-pub type GLchar = i8;
+/// c_char is `i8` on x86_64 but `u8` on aarch64 (all Android 64-bit targets) --
+/// the JNI/GL string APIs must use the std alias, never a hardcoded i8.
+pub type GLchar = std::ffi::c_char;
 
 pub const GL_NO_ERROR: GLenum = 0;
 pub const GL_TRUE: GLboolean = 1;

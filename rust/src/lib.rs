@@ -33,7 +33,7 @@ use state::Shared;
 
 #[link(name = "log")]
 extern "C" {
-    fn __android_log_write(prio: i32, tag: *const i8, text: *const i8) -> i32;
+    fn __android_log_write(prio: i32, tag: *const std::ffi::c_char, text: *const std::ffi::c_char) -> i32;
 }
 
 const ANDROID_LOG_INFO: i32 = 4;
@@ -52,7 +52,11 @@ fn log_write(prio: i32, msg: &str) {
     let mut bytes = msg.as_bytes().to_vec();
     bytes.push(0);
     unsafe {
-        __android_log_write(prio, tag.as_ptr() as *const i8, bytes.as_ptr() as *const i8);
+        __android_log_write(
+            prio,
+            tag.as_ptr() as *const std::ffi::c_char,
+            bytes.as_ptr() as *const std::ffi::c_char,
+        );
     }
 }
 
