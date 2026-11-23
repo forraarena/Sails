@@ -15,7 +15,7 @@ problems = []
 notes = []
 
 
-def strip_code(text, line_comment="//", block_comment=("/*", "*/"), hash_comment=None, rust=False):
+def strip_code(text, line_comment="//", block_comment=None, hash_comment=None, rust=False):
     """Remove comments and string literals, preserving newlines, for balance checks."""
     out = []
     i = 0
@@ -83,7 +83,10 @@ BALANCE_PAIRS = {"(": ")", "[": "]", "{": "}"}
 
 
 def check_balance(name, text, brackets=True):
-    code = strip_code(text, rust=name.endswith(".rs"))
+    # Only Rust/Kotlin/Java-family files have /* */ comments; shell globs like
+    # ndk/* would false-positive on it.
+    block = ("/*", "*/") if name.endswith((".rs", ".kt", ".kts", ".java")) else None
+    code = strip_code(text, rust=name.endswith(".rs"), block_comment=block)
     stack = []
     for idx, c in enumerate(code):
         if not brackets:
@@ -117,7 +120,8 @@ kotlin_files = sorted((ROOT / "app" / "src" / "main" / "kotlin").rglob("*.kt"))
 
 for f in rust_files + kotlin_files + [ROOT / "app" / "build.gradle.kts",
                                       ROOT / "settings.gradle.kts",
-                                      ROOT / "build.gradle.kts"]:
+                                      ROOT / "build.gradle.kts",
+                                      ROOT / ".github" / "workflows" / "ci.yml"]:
     if f.exists():
         check_balance(str(f.relative_to(ROOT)), f.read_text())
     else:
