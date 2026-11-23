@@ -27,10 +27,26 @@ jobs:
         with:
           targets: aarch64-linux-android,x86_64-linux-android
 
+      - name: Android NDK (runner images no longer preinstall it)
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          add-to-path: true
+
       - name: Build native compositor (libsails.so)
         run: |
           set -x
           bash scripts/build-rust.sh 2>&1 | tee build-rust.log
+
+      - name: Push native build log to branch (debug aid)
+        if: failure()
+        run: |
+          git config user.name "sails-ci"
+          git config user.email "sails-ci@users.noreply.github.com"
+          mkdir -p .ci && cp build-rust.log .ci/last-build.log 2>/dev/null || echo "no log produced" > .ci/last-build.log
+          git add .ci/last-build.log
+          git commit -m "CI: native build log [skip ci]" || true
+          git push
 
       - name: Upload native build log
         if: always()
