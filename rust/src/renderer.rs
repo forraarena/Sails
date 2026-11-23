@@ -37,7 +37,11 @@ struct Renderer {
     page_tex: u32,
     page_w: i32,
     page_h: i32,
+    /// Kept for diagnostics; the atlas binds once at init.
+    #[allow(dead_code)]
     atlas_tex: u32,
+    /// Current after Renderer::new; the GL context retains it.
+    #[allow(dead_code)]
     program: u32,
     u_resolution: i32,
     u_tex: i32,
@@ -322,7 +326,8 @@ fn run(shared: Arc<Mutex<Shared>>) {
                         gl::glViewport(0, 0, w, h);
                         record_surface_size(&shared, w, h);
                         if let Ok(mut st) = shared.lock() {
-                            st.push(Event::ResizeBrowser(w, (h - st.chrome_h).max(1)));
+                            let page_h = (h - st.chrome_h).max(1);
+                            st.push(Event::ResizeBrowser(w, page_h));
                         }
                     }
                 }

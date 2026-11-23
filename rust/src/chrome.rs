@@ -89,18 +89,13 @@ impl Geom {
             self.data.extend_from_slice(&[px, py, color[0], color[1], color[2], color[3], 0.0, 0.0]);
         }
     }
-
-    pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
-    }
 }
 
 // ---- layout --------------------------------------------------------------------
 
 pub struct Layout {
     pub bar_h: f32,
-    pub btn: f32,     // square touch target per icon
-    pub pad: f32,
+    pub btn: f32, // square touch target per icon
     pub back_cx: f32,
     pub fwd_cx: f32,
     pub reload_cx: f32,
@@ -108,7 +103,6 @@ pub struct Layout {
     pub pill_w: f32,
     pub pill_y: f32,
     pub pill_h: f32,
-    pub chrome_h: i32,
 }
 
 pub fn layout(w: i32, chrome_h: i32) -> Layout {
@@ -125,7 +119,6 @@ pub fn layout(w: i32, chrome_h: i32) -> Layout {
     Layout {
         bar_h,
         btn,
-        pad,
         back_cx,
         fwd_cx,
         reload_cx,
@@ -133,7 +126,6 @@ pub fn layout(w: i32, chrome_h: i32) -> Layout {
         pill_w,
         pill_y,
         pill_h,
-        chrome_h,
     }
 }
 
@@ -255,7 +247,7 @@ pub fn draw_chrome(
             );
         }
     } else {
-        let shown: &str = if st.url.is_empty() { "" } else { st.url.as_str() };
+        let shown: &str = &st.url;
         let col = if st.loading() { COLOR_TEXT_DIM } else { COLOR_TEXT };
         draw_text(glyph, shown, text_x, cy, text_scale, col, max_w);
     }

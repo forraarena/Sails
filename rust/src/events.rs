@@ -24,6 +24,7 @@ pub const KIND_SET_PAGE_FOCUS: i32 = 11;
 pub const KIND_RESIZE_BROWSER: i32 = 12;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // SetPageFocus is wired when in-page keyboard focus lands
 pub enum Event {
     /// Navigate the engine (already normalized by the omnibox).
     LoadUrl(String),

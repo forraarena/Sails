@@ -27,6 +27,9 @@ jobs:
         with:
           targets: aarch64-linux-android,x86_64-linux-android
 
+      - name: Rust unit tests (host)
+        run: cargo test --manifest-path rust/Cargo.toml
+
       - name: Android NDK (runner images no longer preinstall it)
         uses: nttld/setup-ndk@v1
         with:
