@@ -190,7 +190,7 @@ jobs:
       - name: Create AVD
         run: |
           set -o pipefail
-          "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
             -n sails-test -k "system-images;android-30;google_apis;x86_64" --force 2>&1 | tee avd-create.log || {
             tail -n 20 avd-create.log | cut -c1-400 | sed 's/^/::error::/'
             exit 1
