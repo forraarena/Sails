@@ -297,7 +297,7 @@ pub fn draw_chrome(
     }
 
     // Progress strip under the bar.
-    let prog_h = PROGRESS_DP * chrome_h as f32 / CHROME_DP;
+    let prog_h = PROGRESS_DP * st.chrome_h as f32 / CHROME_DP;
     solid.quad(0.0, l.bar_h, w as f32, prog_h, [0.0, 0.0, 0.0, 0.35]);
     if st.loading() {
         let pw = (st.progress.max(0).min(100) as f32 / 100.0) * w as f32;
