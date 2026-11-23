@@ -50,7 +50,7 @@ jobs:
         run: |
           set -o pipefail
           bash -x scripts/build-rust.sh 2>&1 | tee build-rust.log || {
-            sed 's/\x1b\[[0-9;]*m//g' build-rust.log | grep -aiE "error|failed|panicked|not found|missing|denied|abort" | cut -c1-500 | tail -35 | sed 's/^/::error::/'
+            sed 's/\x1b\[[0-9;]*m//g' build-rust.log | grep -aA6 -iE "^error|panicked" | cut -c1-400 | tail -60 | sed 's/^/::error::/'
             exit 1
           }
 
