@@ -37,7 +37,7 @@ jobs:
         run: |
           set -o pipefail
           bash -x scripts/build-rust.sh 2>&1 | tee build-rust.log || {
-            tail -n 30 build-rust.log | cut -c1-800 | sed 's/^/::error::/'
+            sed 's/\x1b\[[0-9;]*m//g' build-rust.log | grep -aiE "error|failed|panicked|not found|missing|denied|abort" | cut -c1-500 | tail -35 | sed 's/^/::error::/'
             exit 1
           }
 
@@ -56,7 +56,7 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-debug.log || {
-            tail -n 30 gradle-debug.log | cut -c1-800 | sed 's/^/::error::/'
+            sed 's/\x1b\[[0-9;]*m//g' gradle-debug.log | grep -aE "FAILURE|error:|Caused by|Exception|What went wrong" | cut -c1-500 | tail -35 | sed 's/^/::error::/'
             exit 1
           }
 
