@@ -1,48 +1,49 @@
-# Sails PoC — first public test build
+# Sails v0.1.1-poc — arm64-only test build
 
-A proof-of-concept Android browser that runs the **Cefrium** engine (Chromium,
-Rust-hosted) entirely off-screen and draws **every pixel with OpenGL ES 3 from
-Rust** — the status bar, omnibox, buttons, progress strip and page texture are
-all composited by `libsails.so`. No Android UI toolkit is used at runtime.
+**Fixes/changes since v0.1.0-poc**
 
-## What works
+- **arm64-v8a only**: the APK no longer bundles x86_64 — roughly 35% smaller.
+- Release APK signed with the debug key (still sideload-friendly).
 
-- Omnibox: tap the address pill, type a URL or search terms, press GO
-- Back / forward / reload / stop buttons with live progress bar + spinner
-- Page taps and one-finger scrolling forwarded to the engine
-- JavaScript dialogs and `<select>` pickers (rendered by the engine's activity)
-- Hardware Back button (closes omnibox, then navigates back)
+## Help us fix the launch crash (v0.1.0 report: blank screen + crash)
 
-## Not in the PoC yet
+If the app still shows a blank screen or crashes, send us the log:
 
-Multi-touch pinch-zoom, IME-to-page text bridge (typing into web forms), text
-selection, Vulkan backend, desktop-mode / UA controls, downloads, tabs.
+```
+adb logcat -c            # clear old logs
+# ... launch Sails now, wait for it to crash ...
+adb logcat -d > sails-crash.log
+```
+
+Attach `sails-crash.log` to an issue (or paste the lines around
+`FATAL EXCEPTION` / `Fatal signal`). Every CI build now runs an automated
+emulator smoke test that captures the same evidence.
 
 ## Installing
 
-**Requirements: Android 10+ (API 29), arm64-v8a device or x86_64 emulator.**
+**Requirements: Android 10+ (API 29), arm64-v8a device.**
 
 | Asset | Use |
 |---|---|
-| `Sails-*-debug.apk` | Sideloading on a device (`adb install` or tap in a file manager) |
-| `Sails-*-release.apk` | Same, smaller (no debug overhead). Signed with the debug key |
+| `Sails-*-debug.apk` | Sideloading on a device |
+| `Sails-*-release.apk` | Same, smaller. Debug-key signed |
 
-Enable *Install unknown apps* for your file manager / adb if prompted. The APKs
-are large (~270–300 MB) because they embed the Cefrium/Chromium engine
-(`libcef.so` ≈ 203 MB per ABI).
+Enable *Install unknown apps* if prompted. The APK is large (~200 MB) because
+it embeds the Cefrium/Chromium engine (`libcef.so` ≈ 203 MB).
 
-## Security note
+## What works (when it launches)
 
-Release APKs are signed with the **debug key** — fine for testing, not for
-distribution. Verify you downloaded them from this repository's Releases page.
+- Omnibox: tap the address pill, type a URL or search terms, press GO
+- Back / forward / reload / stop with live progress bar + spinner
+- Page taps and one-finger scrolling; JS dialogs and `<select>` pickers
+- Hardware Back (closes omnibox, then navigates back)
 
 ## Building from source
 
-See [README.md](https://github.com/forraarena/Sails/blob/main/README.md):
-`./scripts/build-rust.sh && ./gradlew :app:assembleDebug` (Rust + NDK r27 +
-JDK 25). Every push to this repo builds APKs automatically in CI.
+See the README: `./scripts/build-rust.sh && ./gradlew :app:assembleDebug`
+(Rust + NDK r27 + JDK 25). Every push builds APKs automatically in CI.
 
 ## Attribution
 
 Includes the Cefrium SDK (Chromium/CEF) and a classic 5×7 GLCD bitmap font —
-see [NOTICE.md](https://github.com/forraarena/Sails/blob/main/NOTICE.md).
+see NOTICE.md.

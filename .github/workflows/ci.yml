@@ -189,10 +189,11 @@ jobs:
       - name: Run smoke test on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 29
           target: google_apis
           arch: x86_64
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim -memory 3072
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim
+          emulator-boot-timeout: 600
           script: |
             if ! OUT=$(adb install -r -g app/build/outputs/apk/debug/app-debug.apk 2>&1); then
               echo "::error::first install attempt failed: $OUT"
