@@ -94,7 +94,9 @@ fi
 export ANDROID_NDK_HOME="$NDK_FOUND"
 # SAILS_LOG lets CI point the failure annotations at the tee'd build log.
 SAILS_LOG="${SAILS_LOG:-}"
-if ! cargo ndk $(for t in $TARGETS; do printf -- "-t %s " "$t"; done) $BUILD_FLAG build; then
+# The crate lives in rust/; cargo-ndk runs cargo in the current directory,
+# so build from there (subshell keeps the rest of the script at the root).
+if ! (cd rust && cargo ndk $(for t in $TARGETS; do printf -- "-t %s " "$t"; done) $BUILD_FLAG build); then
   annotate_tail "$SAILS_LOG" 25
   exit 1
 fi
@@ -109,7 +111,7 @@ for t in $TARGETS; do
     *) echo "warning: unknown target $t, skipping"; continue ;;
   esac
   mkdir -p "$OUT/$abi"
-  cp "target/$t/$MODE/libsails.so" "$OUT/$abi/libsails.so"
+  cp "rust/target/$t/$MODE/libsails.so" "$OUT/$abi/libsails.so"
   echo "placed $OUT/$abi/libsails.so"
 done
 
