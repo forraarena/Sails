@@ -36,7 +36,10 @@ jobs:
       - name: Build native compositor (libsails.so)
         run: |
           set -o pipefail
-          SAILS_LOG=build-rust.log bash scripts/build-rust.sh 2>&1 | tee build-rust.log
+          bash -x scripts/build-rust.sh 2>&1 | tee build-rust.log || {
+            tail -n 30 build-rust.log | cut -c1-800 | sed 's/^/::error::/'
+            exit 1
+          }
 
       - name: Upload native build log
         if: always()
@@ -53,7 +56,7 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-debug.log || {
-            tail -n 25 gradle-debug.log | cut -c1-800 | sed 's/^/::error::/'
+            tail -n 30 gradle-debug.log | cut -c1-800 | sed 's/^/::error::/'
             exit 1
           }
 
