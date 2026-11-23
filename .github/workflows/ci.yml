@@ -184,17 +184,27 @@ jobs:
         run: |
           SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKM" --licenses > /dev/null 2>&1 || true
-          "$SDKM" --install "system-images;android-30;google_apis;x86_64" "platform-tools" > /dev/null
+          "$SDKM" --install "system-images;android-30;google_apis;x86_64" "platform-tools" "emulator"
+          "$ANDROID_HOME/emulator/emulator" -version | head -2
+
+      - name: Create AVD
+        run: |
+          set -o pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
+            -n sails-test -k "system-images;android-30;google_apis;x86_64" --force 2>&1 | tee avd-create.log || {
+            tail -n 20 avd-create.log | cut -c1-400 | sed 's/^/::error::/'
+            exit 1
+          }
 
       - name: Boot emulator
         run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
-            -n sails-test -k "system-images;android-30;google_apis;x86_64" --force
+          set -o pipefail
           nohup "$ANDROID_HOME/emulator/emulator" -avd sails-test \
             -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect \
             -no-snapshot -memory 3072 -accel on > emulator.log 2>&1 &
-          adb wait-for-device
-          timeout 300 bash -c 'while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do sleep 3; done'
+          adb wait-for-device || { tail -n 30 emulator.log | cut -c1-400 | sed 's/^/::error::/'; exit 1; }
+          timeout 300 bash -c 'while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do sleep 3; done' \
+            || { tail -n 40 emulator.log | cut -c1-400 | sed 's/^/::error::/'; exit 1; }
           echo "emulator booted: sdk=$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 
       - name: Install, launch, capture
@@ -241,4 +251,5 @@ jobs:
             shot-*.png
             emulator.log
             verdict.txt
+            avd-create.log
           if-no-files-found: warn
